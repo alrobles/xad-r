@@ -1,0 +1,45 @@
+# R artifacts
+.Rproj.user/
+.Rhistory
+.RData
+.Ruserdata
+*.Rproj
+*.rds
+*.RDS
+
+# Build artifacts
+build/
+_build/
+*.o
+*.so
+*.dll
+*.dylib
+*.a
+*.lib
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.cmake
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Testing
+tests/*.o
+tests/*.so
+
+# Documentation
+docs/_build/
+*.html
+
+# Temporary files
+*.tmp
+*.log
+.DS_Store
