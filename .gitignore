@@ -1,3 +1,16 @@
+# R package artifacts
+*.o
+*.so
+*.dll
+*.dylib
+*.a
+*.lib
+src/*.o
+src/*.so
+src/*.dll
+src/xad/src/*.o
+src/*.Rplots.pdf
+
 # R artifacts
 .Rproj.user/
 .Rhistory
@@ -7,21 +20,19 @@
 *.rds
 *.RDS
 
-# Build artifacts
+# R CMD check output
+*.Rcheck/
+*.tar.gz
+
+# CMake build directories
 build/
 _build/
-*.o
-*.so
-*.dll
-*.dylib
-*.a
-*.lib
-
-# CMake
+cmake-build-*/
 CMakeCache.txt
 CMakeFiles/
 cmake_install.cmake
 Makefile
+install_manifest.txt
 *.cmake
 
 # IDE
@@ -31,15 +42,15 @@ Makefile
 *.swo
 *~
 
-# Testing
-tests/*.o
-tests/*.so
-
 # Documentation
 docs/_build/
 *.html
+
+# Test cache
+tests/testthat/__cache__/
 
 # Temporary files
 *.tmp
 *.log
 .DS_Store
+Thumbs.db

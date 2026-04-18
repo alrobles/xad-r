@@ -1,198 +1,216 @@
-# xad-r: High-Performance Automatic Differentiation for R
+# xad-r: R Bindings for XAD Automatic Differentiation
 
-R bindings for the [XAD](https://github.com/auto-differentiation/xad) automatic differentiation library, bringing production-ready, high-performance automatic differentiation to R.
+[![R-CMD-check](https://github.com/alrobles/xad-r/actions/workflows/R-CMD-check.yml/badge.svg)](https://github.com/alrobles/xad-r/actions/workflows/R-CMD-check.yml)
+[![License: AGPL-3](https://img.shields.io/badge/License-AGPL--3-blue.svg)](LICENSE.md)
 
-## Overview
+`xadr` is an R package that brings the high-performance [XAD](https://github.com/alrobles/xad)
+C++ automatic differentiation library to R. It provides:
 
-`xad-r` provides seamless integration between R and the XAD C++ library, enabling:
+- **Adjoint (reverse) mode**: Compute the full gradient vector of a scalar function in a
+  single backward sweep — ideal for many-input, single-output problems (machine learning,
+  risk sensitivities).
+- **Forward (tangent-linear) mode**: Propagate derivatives forward alongside function
+  evaluation — ideal for few-input problems.
+- **50+ differentiable math functions**: `sin`, `cos`, `exp`, `log`, `sqrt`, `erf`, and
+  many more, all with exact analytic derivatives.
+- **R operator overloading**: Use standard R arithmetic (`+`, `-`, `*`, `/`, `^`) with
+  active variables seamlessly.
+- **High-level convenience API**: `gradient_adjoint()` and `gradient_forward()` for
+  one-line gradient computation.
 
-- **Forward mode** automatic differentiation
-- **Adjoint (reverse) mode** automatic differentiation
-- **Expression templates** for efficient computation
-- **Zero-copy integration** with R memory through column-major layouts
-- **NA/missing value support** for robust statistical computing
-- **High-performance** computation suitable for production environments
-
-## Features
-
-### Current Status (v0.1.0 - Initial Infrastructure)
-
-- ✅ R package structure with CMake-based build system
-- ✅ XAD library integration via git submodule
-- ✅ Header-only binding layer foundation
-- ✅ Basic Rcpp module infrastructure
-- ✅ Test infrastructure with testthat
-
-### Planned Features
-
-Phase 2: R-to-xad Data Container Layer
-- RArray and RTensor containers
-- Zero-copy SEXP memory mapping
-- Shape, stride, and broadcasting support
-
-Phase 3: Expression Tree Semantics
-- R-side construction of XAD expression graphs
-- Operator overloading for vector/matrix operations
-- Math function mapping
-
-Phase 4: Optional/NA Support
-- NA-masked container variants
-- Reliable missing-value propagation
-
-Phase 5: High-fidelity Testing
-- Port XAD C++ core tests
-- Integration tests mirroring xad-py patterns
-- Cross-platform CI
-
-Phase 6: Documentation & Examples
-- Usage guides mapping R idioms to XAD workflows
-- Forward/adjoint mode derivative examples
-- Monte Carlo differentiation examples
-- Real-world financial/engineering scenarios
+---
 
 ## Installation
 
-### Prerequisites
-
-- R >= 3.5.0
-- C++17 compatible compiler
-- CMake >= 3.15
-- Rcpp package
-
-### From Source
-
 ```r
-# Install Rcpp if not already installed
-install.packages("Rcpp")
-
-# Clone the repository with submodules
-git clone --recursive https://github.com/alrobles/xad-r.git
-
-# Build and install
-R CMD build xad-r
-R CMD INSTALL xad_0.1.0.tar.gz
+# Install from GitHub (requires devtools and a C++17 compiler)
+# devtools::install_github("alrobles/xad-r")
 ```
 
-### Development Build
+**System requirements:** C++17 compiler (GCC ≥ 7, Clang ≥ 5, MSVC 2017+), R ≥ 4.0.
 
-```bash
-# Clone with submodules
-git clone --recursive https://github.com/alrobles/xad-r.git
-cd xad-r
-
-# Initialize submodules if already cloned
-git submodule update --init --recursive
-
-# Build with CMake (optional, for development)
-mkdir build && cd build
-cmake ..
-make
-
-# Or build as R package
-cd ..
-R CMD INSTALL .
-```
+---
 
 ## Quick Start
 
+### Adjoint (Reverse) Mode
+
+Computes the **full gradient** in a single backward sweep:
+
 ```r
-library(xad)
+library(xadr)
 
-# Check XAD availability
-xad_info()
+# f(x0, x1, x2, x3) = x0 + x1 - x2 * x3
+f <- function(x0, x1, x2, x3) x0 + x1 - x2 * x3
 
-# Get version
-xad_version()
+gradient_adjoint(f, c(1.0, 1.5, 1.3, 1.2))
+#   x1   x2   x3    x4
+#  1.0  1.0 -1.2  -1.3
 ```
+
+### Forward Mode
+
+Propagates derivatives forward (one run per input):
+
+```r
+# f(x1, x2) = x1^2 + x1 * x2
+f <- function(x1, x2) x1^2 + x1 * x2
+
+gradient_forward(f, c(3.0, 4.0))
+#  x1  x2
+#  10   3
+```
+
+### Low-level Tape API (Adjoint Mode)
+
+```r
+library(xadr)
+
+tape <- adj_createTape()
+
+x0 <- adj_Real(1.0); adj_registerInput(tape, x0)
+x1 <- adj_Real(1.5); adj_registerInput(tape, x1)
+x2 <- adj_Real(1.3); adj_registerInput(tape, x2)
+x3 <- adj_Real(1.2); adj_registerInput(tape, x3)
+
+adj_newRecording(tape)
+
+y <- x0 + x1 - x2 * x3
+
+adj_registerOutput(tape, y)
+adj_setDerivative(y, 1.0)
+adj_computeAdjoints(tape)
+
+cat("y =", adj_getValue(y), "\n")
+cat("dy/dx0 =", adj_getDerivative(x0), "\n")  # 1.0
+cat("dy/dx1 =", adj_getDerivative(x1), "\n")  # 1.0
+cat("dy/dx2 =", adj_getDerivative(x2), "\n")  # -1.2
+cat("dy/dx3 =", adj_getDerivative(x3), "\n")  # -1.3
+```
+
+### Low-level Forward Mode API
+
+```r
+library(xadr)
+
+x0 <- fwd_Real(1.0); fwd_setDerivative(x0, 1.0)  # seed dx0=1
+x1 <- fwd_Real(1.5)
+x2 <- fwd_Real(1.3)
+x3 <- fwd_Real(1.2)
+
+y <- x0 + x1 - x2 * x3
+
+cat("y      =", fwd_getValue(y), "\n")
+cat("dy/dx0 =", fwd_getDerivative(y), "\n")  # 1.0
+```
+
+---
+
+## Math Functions
+
+The following math functions are available for both adjoint (`adj_*`) and forward
+(`fwd_*`) mode active variables:
+
+| Function | Description |
+|----------|-------------|
+| `adj_sin` / `fwd_sin` | Sine |
+| `adj_cos` / `fwd_cos` | Cosine |
+| `adj_tan` / `fwd_tan` | Tangent |
+| `adj_asin` / `fwd_asin` | Arc sine |
+| `adj_acos` / `fwd_acos` | Arc cosine |
+| `adj_atan` / `fwd_atan` | Arc tangent |
+| `adj_atan2` / `fwd_atan2` | Two-argument arc tangent |
+| `adj_exp` / `fwd_exp` | Exponential |
+| `adj_exp2` / `fwd_exp2` | Base-2 exponential |
+| `adj_expm1` / `fwd_expm1` | exp(x) - 1 |
+| `adj_log` / `fwd_log` | Natural logarithm |
+| `adj_log2` / `fwd_log2` | Base-2 logarithm |
+| `adj_log10` / `fwd_log10` | Base-10 logarithm |
+| `adj_log1p` / `fwd_log1p` | log(1 + x) |
+| `adj_sqrt` / `fwd_sqrt` | Square root |
+| `adj_cbrt` / `fwd_cbrt` | Cube root |
+| `adj_pow` / `fwd_pow` | Power (both args active) |
+| `adj_pow_scalar` / `fwd_pow_scalar` | Power (scalar exponent) |
+| `adj_abs` / `fwd_abs` | Absolute value |
+| `adj_sinh` / `fwd_sinh` | Hyperbolic sine |
+| `adj_cosh` / `fwd_cosh` | Hyperbolic cosine |
+| `adj_tanh` / `fwd_tanh` | Hyperbolic tangent |
+| `adj_asinh` / `fwd_asinh` | Inverse hyperbolic sine |
+| `adj_acosh` / `fwd_acosh` | Inverse hyperbolic cosine |
+| `adj_atanh` / `fwd_atanh` | Inverse hyperbolic tangent |
+| `adj_erf` / `fwd_erf` | Error function |
+| `adj_erfc` / `fwd_erfc` | Complementary error function |
+| `adj_floor` / `fwd_floor` | Floor |
+| `adj_ceil` / `fwd_ceil` | Ceiling |
+| `adj_round` | Round (adjoint only) |
+| `adj_hypot` / `fwd_hypot` | Hypotenuse |
+| `adj_min` / `fwd_min` | Minimum |
+| `adj_max` / `fwd_max` | Maximum |
+| `adj_fmod` / | Floating-point remainder |
+| `adj_copysign` | Copy sign |
+
+---
+
+## Examples
+
+See `inst/examples/` for full examples:
+
+- `adj_1st.R` — First-order adjoint mode
+- `fwd_1st.R` — First-order forward mode
+- `swap_pricer.R` — Interest rate swap sensitivity
+
+---
 
 ## Architecture
 
-The project follows proven patterns from similar binding projects:
-
-- **xtensor-r**: Header-only C++ binding layer with CRTP patterns for zero-copy R memory integration
-- **xad-py**: Module organization separating forward and adjoint modes
-- **XAD**: Core automatic differentiation engine with expression templates
-
-### Directory Structure
-
 ```
 xad-r/
-├── CMakeLists.txt           # Root CMake configuration
-├── DESCRIPTION              # R package metadata
-├── NAMESPACE                # R package exports
-├── R/                       # R wrapper functions
-│   ├── xad-package.R        # Package documentation and loading
-│   └── utils.R              # Utility functions
-├── src/                     # C++ binding sources
-│   ├── CMakeLists.txt       # Source build configuration
-│   ├── init.cpp             # R package initialization
-│   ├── rcpp_module.cpp      # Rcpp module definitions
-│   ├── Makevars             # R build configuration
-│   └── xad/                 # XAD library (git submodule)
-├── include/xad-r/           # Header-only binding layer
-│   ├── xad-r.hpp            # Main header
-│   ├── xad_r_config.hpp     # Configuration
-│   └── rutils.hpp           # R memory utilities
-├── tests/                   # Test suite
-│   ├── testthat.R           # testthat entry point
-│   ├── testthat/            # R tests
-│   └── test_main.cpp        # C++ tests
-├── cmake/                   # CMake modules
-│   ├── FindR.cmake          # R detection
-│   └── xad-rConfig.cmake.in # Package config
-└── docs/                    # Documentation and analysis
+├── DESCRIPTION          # R package metadata
+├── NAMESPACE            # R exports
+├── CMakeLists.txt       # Standalone CMake build
+├── cmake/
+│   └── FindR.cmake      # R installation discovery
+├── R/
+│   ├── adj_1st.R        # Adjoint mode S3 methods + gradient_adjoint()
+│   ├── fwd_1st.R        # Forward mode S3 methods + gradient_forward()
+│   ├── math.R           # Generic math function dispatchers
+│   └── xadr-package.R  # Package documentation
+├── src/
+│   ├── Makevars         # R build flags
+│   ├── Makevars.win     # Windows build flags
+│   ├── xad_bindings.cpp # Rcpp C++ bindings
+│   ├── include/XAD/     # Pre-generated xad headers
+│   └── xad/             # XAD C++ library (git submodule)
+├── tests/testthat/      # testthat test suite
+└── inst/examples/       # Example R scripts
 ```
 
-## Documentation
+The package compiles `src/xad/src/Tape.cpp` (the XAD tape engine) and
+`src/xad_bindings.cpp` (Rcpp bindings) into a shared library loaded by R.
 
-- [Development Roadmap](docs/roadmap_xad-r.md) - Detailed development plan
-- [XAD Analysis](docs/analysis_xad.md) - XAD C++ library architecture
-- [xtensor-r Analysis](docs/analysis_xtensor-r.md) - R binding patterns
+---
 
-## Contributing
+## Development
 
-Contributions are welcome! Please see the [development roadmap](docs/roadmap_xad-r.md) for planned features and current progress.
+```bash
+# Clone with submodules
+git clone --recurse-submodules https://github.com/alrobles/xad-r.git
+cd xad-r
 
-### Development Phases
+# Install R package in development mode
+Rscript -e "devtools::install()"
 
-1. **Phase 1: Core Infrastructure** ✅ (Current)
-   - R package structure, CMake build system, XAD submodule integration
+# Run tests
+Rscript -e "devtools::test()"
 
-2. **Phase 2: Data Container Layer** (Next)
-   - RArray/RTensor containers with zero-copy R memory mapping
+# R CMD check
+Rscript -e "rcmdcheck::rcmdcheck()"
+```
 
-3. **Phase 3: Expression Semantics**
-   - Expression tree construction and operator overloading
-
-4. **Phase 4: Optional/NA Support**
-   - NA-aware containers for statistical computing
-
-5. **Phase 5: Testing Infrastructure**
-   - Comprehensive test suite mirroring XAD and xad-py
-
-6. **Phase 6: Documentation & Examples**
-   - User guides, API reference, practical examples
-
-7. **Phase 7: Pre-release Quality**
-   - Benchmarks, performance tuning, beta testing
+---
 
 ## License
 
-This project is licensed under the GNU Affero General Public License v3.0 (AGPL-3.0).
+Copyright © 2010–2026 Xcelerit Computing Ltd.
 
-## Acknowledgments
-
-- [XAD](https://github.com/auto-differentiation/xad) - High-performance automatic differentiation library
-- [xtensor-r](https://github.com/xtensor-stack/xtensor-r) - Inspiration for R memory integration patterns
-- [xad-py](https://github.com/auto-differentiation/xad-python) - Python bindings providing module organization patterns
-
-## References
-
-- XAD Documentation: https://auto-differentiation.github.io/xad/
-- Automatic Differentiation: https://en.wikipedia.org/wiki/Automatic_differentiation
-- R Package Development: https://r-pkgs.org/
-
-## Contact
-
-- Issues: https://github.com/alrobles/xad-r/issues
-- Repository: https://github.com/alrobles/xad-r
+Licensed under the [GNU Affero General Public License v3.0](LICENSE.md).

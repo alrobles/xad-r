@@ -1,13 +1,23 @@
-# Makevars.win for building xad package on Windows
+# Makevars.win for xad-r package (Windows)
+# Sets up compilation with xad C++ headers and source
 
-# Get Rcpp compilation flags
-PKG_CPPFLAGS = $(shell "${R_HOME}/bin${R_ARCH_BIN}/Rscript.exe" -e "Rcpp:::CxxFlags()")
+# XAD source and include directories relative to src/
+XAD_SRC = xad/src
+XAD_INC = $(XAD_SRC)
+XAD_INC_GEN = include
 
-# XAD include directory
-PKG_CPPFLAGS += -I../include -I./xad/src
-
-# C++ standard
+# C++ standard and include paths
 CXX_STD = CXX17
 
+PKG_CXXFLAGS = \
+  -I$(XAD_INC) \
+  -I$(XAD_INC_GEN) \
+  -DXAD_NO_STRONG_INLINE
+
 # Link flags
-PKG_LIBS = $(shell "${R_HOME}/bin${R_ARCH_BIN}/Rscript.exe" -e "Rcpp:::LdFlags()")
+PKG_LIBS =
+
+# Source files to compile: Rcpp exports + our bindings + xad's Tape.cpp
+SOURCES = RcppExports.cpp xad_bindings.cpp $(XAD_SRC)/Tape.cpp
+
+OBJECTS = $(SOURCES:.cpp=.o)

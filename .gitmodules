@@ -1,3 +1,3 @@
 [submodule "src/xad"]
-	path = src/xad
-	url = https://github.com/auto-differentiation/xad.git
+path = src/xad
+url = https://github.com/auto-differentiation/xad.git

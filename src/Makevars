@@ -1,14 +1,23 @@
-# Makevars for building xad package
-# This file is used by R CMD INSTALL
+# Makevars for xad-r package
+# Sets up compilation with xad C++ headers and source
 
-# Get Rcpp compilation flags
-PKG_CPPFLAGS = $(shell "${R_HOME}/bin/Rscript" -e "Rcpp:::CxxFlags()")
+# XAD source and include directories relative to src/
+XAD_SRC = xad/src
+XAD_INC = $(XAD_SRC)
+XAD_INC_GEN = include
 
-# XAD include directory
-PKG_CPPFLAGS += -I../include -I./xad/src
-
-# C++ standard
+# C++ standard and include paths
 CXX_STD = CXX17
 
-# Link flags
-PKG_LIBS = $(shell "${R_HOME}/bin/Rscript" -e "Rcpp:::LdFlags()")
+PKG_CXXFLAGS = \
+  -I$(XAD_INC) \
+  -I$(XAD_INC_GEN) \
+  -DXAD_NO_STRONG_INLINE
+
+# Link flags (none needed - xad is compiled into the shared library)
+PKG_LIBS =
+
+# Source files to compile: Rcpp exports + our bindings + xad's Tape.cpp
+SOURCES = RcppExports.cpp xad_bindings.cpp $(XAD_SRC)/Tape.cpp
+
+OBJECTS = $(SOURCES:.cpp=.o)
