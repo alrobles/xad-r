@@ -1,0 +1,3 @@
+[submodule "src/xad"]
+	path = src/xad
+	url = https://github.com/alrobles/xad.git
