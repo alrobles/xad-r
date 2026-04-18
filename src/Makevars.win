@@ -1,0 +1,13 @@
+# Makevars.win for building xad package on Windows
+
+# Get Rcpp compilation flags
+PKG_CPPFLAGS = $(shell "${R_HOME}/bin${R_ARCH_BIN}/Rscript.exe" -e "Rcpp:::CxxFlags()")
+
+# XAD include directory
+PKG_CPPFLAGS += -I../include -I./xad/src
+
+# C++ standard
+CXX_STD = CXX17
+
+# Link flags
+PKG_LIBS = $(shell "${R_HOME}/bin${R_ARCH_BIN}/Rscript.exe" -e "Rcpp:::LdFlags()")

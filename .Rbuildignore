@@ -1,0 +1,11 @@
+^.*\.Rproj$
+^\.Rproj\.user$
+^\.github$
+^docs$
+^CMakeLists\.txt$
+^cmake$
+^\.git$
+^\.gitignore$
+^\.gitmodules$
+^build$
+^_build$

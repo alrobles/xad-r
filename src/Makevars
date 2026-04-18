@@ -1,0 +1,14 @@
+# Makevars for building xad package
+# This file is used by R CMD INSTALL
+
+# Get Rcpp compilation flags
+PKG_CPPFLAGS = $(shell "${R_HOME}/bin/Rscript" -e "Rcpp:::CxxFlags()")
+
+# XAD include directory
+PKG_CPPFLAGS += -I../include -I./xad/src
+
+# C++ standard
+CXX_STD = CXX17
+
+# Link flags
+PKG_LIBS = $(shell "${R_HOME}/bin/Rscript" -e "Rcpp:::LdFlags()")
