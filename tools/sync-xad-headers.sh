@@ -43,6 +43,45 @@ done
 #    to SOURCES.)
 cp -f "${HERE}/src/xad/src/Tape.cpp" "${DST}/Tape.cpp"
 
+# 4. Re-apply xad-r local patches against upstream XAD.
+#    Keep this list small and document each entry; anything here is drift
+#    from the upstream submodule that we intentionally carry forward.
+echo "==> Applying xad-r local patches to ${DST}"
+
+# Patch: ADVar::calc_derivatives(info, s) 2-arg overload.
+# Upstream (commit 401ee02) at src/xad/src/XAD/Literals.hpp calls
+# ar_.calc_derivative(info, s) (singular, non-existent method on AReal).
+# Inert in upstream because the 2-arg overload on ADVar is rarely
+# instantiated, but downstream LinkingTo consumers that trigger it
+# get a hard compile error. Fix: call the plural form.
+python3 - "${DST}/Literals.hpp" <<'PY'
+import pathlib, sys
+p = pathlib.Path(sys.argv[1])
+src = p.read_text()
+needle = ("    XAD_INLINE void calc_derivatives(DerivInfo<tape_type, Size>& info, tape_type& s) const\n"
+          "    {\n"
+          "        ar_.calc_derivative(info, s);\n"
+          "    }\n")
+fixed = ("    XAD_INLINE void calc_derivatives(DerivInfo<tape_type, Size>& info, tape_type& s) const\n"
+         "    {\n"
+         "        // xad-r LOCAL PATCH (see tools/sync-xad-headers.sh):\n"
+         "        // Upstream XAD (commit 401ee02) calls `ar_.calc_derivative(info, s)`\n"
+         "        // here (singular, which does not exist on AReal). That typo is inert\n"
+         "        // in upstream's own tests because this 2-arg overload on ADVar is\n"
+         "        // rarely instantiated, but it would hard-fail any downstream package\n"
+         "        // that triggers it. The correct call is the plural form.\n"
+         "        ar_.calc_derivatives(info, s);\n"
+         "    }\n")
+if needle in src:
+    p.write_text(src.replace(needle, fixed))
+    print(f"    patched {p.name}: ADVar::calc_derivatives (2-arg) typo")
+elif fixed in src:
+    print(f"    {p.name}: ADVar::calc_derivatives patch already applied")
+else:
+    sys.stderr.write(f"ERROR: could not locate ADVar::calc_derivatives patch site in {p}\n")
+    sys.exit(1)
+PY
+
 n_hpp=$(ls "${DST}"/*.hpp 2>/dev/null | wc -l)
 echo "    ${n_hpp} headers + Tape.cpp synced into ${DST}"
 echo "==> Done."

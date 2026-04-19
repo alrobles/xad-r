@@ -499,7 +499,13 @@ struct ADVar
     template <int Size>
     XAD_INLINE void calc_derivatives(DerivInfo<tape_type, Size>& info, tape_type& s) const
     {
-        ar_.calc_derivative(info, s);
+        // xad-r LOCAL PATCH (see tools/sync-xad-headers.sh):
+        // Upstream XAD (commit 401ee02) calls `ar_.calc_derivative(info, s)`
+        // here (singular, which does not exist on AReal). That typo is inert
+        // in upstream's own tests because this 2-arg overload on ADVar is
+        // rarely instantiated, but it would hard-fail any downstream package
+        // that triggers it. The correct call is the plural form.
+        ar_.calc_derivatives(info, s);
     }
 
     XAD_INLINE const typename areal_type::derivative_type& derivative() const
