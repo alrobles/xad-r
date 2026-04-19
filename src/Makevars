@@ -1,23 +1,29 @@
 # Makevars for xad-r package
-# Sets up compilation with xad C++ headers and source
+#
+# The XAD headers and the single non-header translation unit (Tape.cpp) are
+# shipped under `inst/include/XAD/` so that:
+#
+#   (1) downstream R packages can LinkingTo xadr and compile Tape.cpp themselves
+#       (XAD uses a per-translation-unit tape model — one Tape.cpp per shared
+#       library that allocates tapes);
+#   (2) xadr itself can build from just its own source tree, without the
+#       `src/xad` git submodule being present (pak/remotes install from GitHub
+#       zipballs which do NOT include submodules, so CI of any package that
+#       LinkingTo xadr must work without it).
+#
+# Include path `../inst/include` resolves during `R CMD build` / `R CMD INSTALL`
+# because inst/ is a sibling of src/ in the source tarball.
 
-# XAD source and include directories relative to src/
-XAD_SRC = xad/src
-XAD_INC = $(XAD_SRC)
-XAD_INC_GEN = include
-
-# C++ standard and include paths
 CXX_STD = CXX17
 
 PKG_CXXFLAGS = \
-  -I$(XAD_INC) \
-  -I$(XAD_INC_GEN) \
+  -I../inst/include \
   -DXAD_NO_STRONG_INLINE
 
-# Link flags (none needed - xad is compiled into the shared library)
 PKG_LIBS =
 
-# Source files to compile: Rcpp exports + our bindings + xad's Tape.cpp
-SOURCES = RcppExports.cpp xad_bindings.cpp $(XAD_SRC)/Tape.cpp
+# Compile Tape.cpp from the shipped headers directory. A thin wrapper
+# (xad_tape.cpp) pulls it in so R's default per-.cpp rule handles include paths.
+SOURCES = RcppExports.cpp xad_bindings.cpp xad_tape.cpp
 
 OBJECTS = $(SOURCES:.cpp=.o)
