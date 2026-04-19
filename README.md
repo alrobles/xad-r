@@ -190,6 +190,73 @@ The package compiles `src/xad/src/Tape.cpp` (the XAD tape engine) and
 
 ---
 
+## Using xadr from another R package (LinkingTo)
+
+`xadr` exposes the full XAD C++ header tree under `inst/include/XAD/` so
+that other R packages can depend on it at the C++ level via the standard
+`LinkingTo:` mechanism.
+
+### 1. Declare the dependency in `DESCRIPTION`
+
+```
+LinkingTo:
+    Rcpp,
+    xadr
+Remotes:
+    alrobles/xad-r
+SystemRequirements: C++17
+```
+
+### 2. In your package's `src/Makevars` and `src/Makevars.win`
+
+```make
+CXX_STD = CXX17
+
+# XAD needs Tape.cpp to be compiled alongside your sources. xadr ships
+# Tape.cpp under inst/include/XAD/ for exactly this purpose.
+XADR_INCLUDE = `${R_HOME}/bin/Rscript -e 'cat(system.file("include", package="xadr"))'`
+
+PKG_CPPFLAGS = -I$(XADR_INCLUDE) -DXAD_NO_STRONG_INLINE
+PKG_CXXFLAGS =
+
+# Compile Tape.cpp into your package's shared library.
+# (XAD's tape is per-translation-unit; each consumer package compiles its own.)
+OBJECTS = $(patsubst %.cpp,%.o,$(wildcard *.cpp)) xadr_tape.o
+
+xadr_tape.o: $(XADR_INCLUDE)/XAD/Tape.cpp
+	$(CXX) $(ALL_CPPFLAGS) $(ALL_CXXFLAGS) -c $< -o $@
+```
+
+### 3. In your C++ source
+
+```cpp
+#include <XAD/XAD.hpp>
+
+using AD = xad::AReal<double>;
+
+double my_gradient_demo(const std::vector<double>& x_in) {
+    xad::Tape<double> tape;
+    std::vector<AD> x(x_in.begin(), x_in.end());
+    for (auto& xi : x) tape.registerInput(xi);
+    tape.newRecording();
+
+    AD y = 0;
+    for (auto& xi : x) y += xi * xi;   // f(x) = sum(x^2)
+
+    tape.registerOutput(y);
+    xad::derivative(y) = 1.0;
+    tape.computeAdjoints();
+
+    // derivatives now in xad::derivative(x[i])
+    return xad::value(y);
+}
+```
+
+This is the mechanism used by `alrobles/xopt` to access XAD at the C++
+level.
+
+---
+
 ## Development
 
 ```bash
@@ -205,6 +272,9 @@ Rscript -e "devtools::test()"
 
 # R CMD check
 Rscript -e "rcmdcheck::rcmdcheck()"
+
+# After bumping the XAD submodule, regenerate inst/include/XAD/:
+bash tools/sync-xad-headers.sh
 ```
 
 ---
